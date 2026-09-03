@@ -4,16 +4,15 @@ import { promisify } from 'node:util'
 const run = promisify(execFile)
 
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com'
-
-export interface GithubPublishConfig {
-  repoOwner: string
-  repoName: string
-  branch: string
-}
+const GITHUB_REPO_OWNER = 'its-ash'
+const GITHUB_REPO_NAME = 'post-agent'
+const GITHUB_BRANCH = 'main'
 
 /**
- * Commits and pushes a post's generated images to GitHub (if not already
- * pushed), then returns their raw.githubusercontent.com URLs.
+ * Commits and pushes newly generated post images to GitHub (if not already
+ * pushed), then returns their raw.githubusercontent.com URLs. Meta's servers
+ * fetch images over the public internet, so this must run before a post's
+ * images are ever handed to publishToMeta.
  *
  * `imagePaths` are web-root-relative (e.g. "/generated/foo.png"), matching
  * files on disk at "public/generated/foo.png".
@@ -22,10 +21,7 @@ export interface GithubPublishConfig {
  * process to have push access (SSH key or credential helper already set up
  * for `git push`).
  */
-export async function publishImagesToGithub(
-  imagePaths: string[],
-  cfg: GithubPublishConfig,
-): Promise<string[]> {
+export async function pushGeneratedImages(imagePaths: string[]): Promise<string[]> {
   const cwd = process.cwd()
   const repoRelativePaths = imagePaths.map(p => `public${p}`)
 
@@ -35,9 +31,9 @@ export async function publishImagesToGithub(
     const { stdout: staged } = await run('git', ['diff', '--cached', '--name-only'], { cwd })
     if (staged.trim()) {
       await run('git', ['commit', '-m', `chore: add generated post images [skip ci]`], { cwd })
-      await run('git', ['push', 'origin', cfg.branch], { cwd })
+      await run('git', ['push', 'origin', GITHUB_BRANCH], { cwd })
     }
   }
 
-  return repoRelativePaths.map(p => `${GITHUB_RAW_BASE}/${cfg.repoOwner}/${cfg.repoName}/${cfg.branch}/${p}`)
+  return repoRelativePaths.map(p => `${GITHUB_RAW_BASE}/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/${GITHUB_BRANCH}/${p}`)
 }
