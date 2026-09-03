@@ -82,7 +82,6 @@ View a post's theme config on the detail page (`/feed/:id`) — it shows all col
 ```
 OLLAMA_HOST=http://localhost:11434
 OLLAMA_MODEL=gemma4:31b-cloud
-POST_INTERVAL_MIN=30
 # Meta (Instagram/Facebook) sync — optional. Leave empty to simulate.
 META_ACCESS_TOKEN=
 META_IG_USER_ID=

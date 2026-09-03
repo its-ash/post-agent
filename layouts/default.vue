@@ -2,8 +2,8 @@
   <div class="app-shell">
     <header class="topbar">
       <NuxtLink to="/" class="brand">
-        <span class="brand-mark">🤖</span>
-        <span class="brand-text">PostAgent</span>
+        <img src="/favicon.svg" alt="Ash by Ash" class="brand-mark" />
+        <span class="brand-text">Ash by Ash</span>
       </NuxtLink>
       <nav class="nav">
         <NuxtLink to="/" class="nav-link">Home</NuxtLink>
@@ -14,7 +14,7 @@
       <slot />
     </main>
     <footer class="footer">
-      <span>PostAgent — AI Social Scheduler</span>
+      <span>Ash by Ash — AI Social Scheduler</span>
       <span class="footer-dot" />
       <span>Powered by local Ollama</span>
     </footer>
@@ -66,7 +66,7 @@ body::before {
   box-shadow: 0 4px 24px rgba(0,0,0,.2);
 }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
-.brand-mark { font-size: 22px; }
+.brand-mark { width: 24px; height: 24px; image-rendering: pixelated; }
 .brand-text { font-weight: 800; font-size: 19px; letter-spacing: -.3px; }
 .nav { display: flex; gap: 4px; }
 .nav-link {

@@ -1,4 +1,4 @@
-import { addPost, buildNextSlot, loadPosts, makeId, type PostCard } from '~/server/utils/postStore'
+import { addPost, loadPosts, makeId, type PostCard } from '~/server/utils/postStore'
 import { generateContent } from '~/server/utils/content'
 import { generateCarouselImages } from '~/server/utils/imageGen'
 import { pickTheme } from '~/server/utils/themes'
@@ -12,9 +12,6 @@ export default defineEventHandler(async (event) => {
 
   const content = await generateContent(cfg, null, usedLangs)
   const theme = pickTheme(usedThemes)
-
-  const posts = await loadPosts()
-  const slot = buildNextSlot(posts, cfg.postIntervalMin)
   const id = makeId()
 
   let images: string[] = []
@@ -25,6 +22,7 @@ export default defineEventHandler(async (event) => {
     console.error('[PostAgent] image generation failed:', e)
   }
 
+  const now = new Date().toISOString()
   const post: PostCard = {
     id,
     title: content.hook,
@@ -35,12 +33,12 @@ export default defineEventHandler(async (event) => {
     codeSnippet: content.codeSnippet,
     theme: theme.id,
     tags: content.hashtags,
-    createdAt: new Date().toISOString(),
-    scheduledAt: slot.toISOString(),
-    status: 'scheduled',
+    createdAt: now,
+    scheduledAt: now,
+    status: 'draft',
     images,
   }
 
   await addPost(post)
-  return { post, nextSlot: slot }
+  return { post }
 })

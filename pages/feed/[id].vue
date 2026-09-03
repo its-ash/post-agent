@@ -39,6 +39,46 @@ const formatTime = (iso: string) => new Date(iso).toLocaleString()
 const { patchPost } = usePostsStore()
 const syncing = ref(false)
 const syncMsg = ref('')
+const copiedDesc = ref(false)
+const downloading = ref(false)
+
+const postDescription = computed(() => {
+  if (!post.value) return ''
+  const p = post.value
+  const tags = p.tags.map(t => `#${t}`).join(' ')
+  return `${p.title}\n\n${p.problem}\n\n${p.codeSnippet}\n\n${p.why}\n\n${tags}`
+})
+
+async function copyDescription() {
+  try {
+    await navigator.clipboard.writeText(postDescription.value)
+    copiedDesc.value = true
+    setTimeout(() => { copiedDesc.value = false }, 2000)
+  } catch {}
+}
+
+async function downloadAllImages() {
+  if (!post.value?.images.length) return
+  downloading.value = true
+  try {
+    for (let i = 0; i < post.value.images.length; i++) {
+      const url = post.value.images[i]
+      const ext = url.match(/\.(png|jpg|jpeg|webp|gif)$/i)?.[1] || 'png'
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const objUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objUrl
+      a.download = `${post.value.id}_slide${i + 1}.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(objUrl)
+    }
+  } finally {
+    downloading.value = false
+  }
+}
 
 async function markPosted() {
   if (!post.value) return
@@ -81,6 +121,9 @@ async function syncToMeta() {
         <div class="platforms">
           <span class="pill ig">Instagram</span>
           <span class="pill fb">Facebook</span>
+          <button class="btn-primary dl-btn" :disabled="downloading || !post.images.length" @click="downloadAllImages">
+            {{ downloading ? 'Downloading…' : '⬇ Download All' }}
+          </button>
         </div>
       </div>
 
@@ -92,7 +135,7 @@ async function syncToMeta() {
           <span class="status-tag" :class="post.status">{{ post.status }}</span>
         </div>
         <h1>{{ post.title }}</h1>
-        <div class="sched">📅 {{ formatTime(post.scheduledAt) }}</div>
+        <div class="sched">📅 {{ formatTime(post.createdAt) }}</div>
 
         <div class="block">
           <h3>Problem</h3>
@@ -162,6 +205,17 @@ async function syncToMeta() {
         </div>
       </div>
     </div>
+
+    <!-- Post Description (for pasting into social platforms) -->
+    <section class="desc-section">
+      <div class="desc-head">
+        <h2>Post Description</h2>
+        <button class="btn-ghost desc-copy" @click="copyDescription">
+          {{ copiedDesc ? '✓ Copied!' : '📋 Copy' }}
+        </button>
+      </div>
+      <pre class="desc-body">{{ postDescription }}</pre>
+    </section>
   </div>
   <div v-else class="empty">Post not found.</div>
 </template>
@@ -177,7 +231,8 @@ async function syncToMeta() {
 .dots button { width: 8px; height: 8px; border-radius: 50%; border: none; background: rgba(255,255,255,.3); cursor: pointer; transition: .2s; }
 .dots button.active { background: #fff; width: 24px; border-radius: 4px; }
 .no-img { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; color: var(--sub); background: var(--panel); border-radius: 18px; }
-.platforms { margin-top: 14px; display: flex; gap: 8px; }
+.platforms { margin-top: 14px; display: flex; gap: 8px; align-items: center; }
+.dl-btn { padding: 8px 18px; font-size: 13px; margin-left: auto; }
 .pill { font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 20px; }
 .pill.ig { background: linear-gradient(135deg, #f09433, #dc2743, #bc1888); color: #fff; }
 .pill.fb { background: #1877f2; color: #fff; }
@@ -226,5 +281,22 @@ async function syncToMeta() {
 @media (max-width: 900px) {
   .detail-grid { grid-template-columns: 1fr; }
   .carousel { position: static; max-width: 420px; }
+}
+
+.desc-section {
+  margin-top: 24px;
+  background: rgba(15,22,41,.6); backdrop-filter: blur(10px);
+  border: 1px solid var(--border); border-radius: 18px; padding: 24px;
+}
+.desc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.desc-head h2 { font-size: 18px; font-weight: 800; }
+.desc-copy { padding: 8px 16px; font-size: 13px; }
+.desc-body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 14px; line-height: 1.7; color: var(--fg);
+  white-space: pre-wrap; word-wrap: break-word;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px;
+  max-height: 400px; overflow-y: auto;
 }
 </style>

@@ -1,46 +1,58 @@
 import { loadPosts, updatePost } from '~/server/utils/postStore'
+import { publishToMeta } from '~/server/utils/metaPublish'
+import { publishImagesToGithub } from '~/server/utils/githubPublish'
+
+const GITHUB_REPO_OWNER = 'its-ash'
+const GITHUB_REPO_NAME = 'post-agent'
+const GITHUB_BRANCH = 'main'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Missing post id' })
 
+  const body = await readBody(event).catch(() => null) || {}
+  const scheduledAtRaw = (body as { scheduledAt?: string }).scheduledAt
+
   const posts = await loadPosts()
   const post = posts.find(p => p.id === id)
   if (!post) throw createError({ statusCode: 404, statusMessage: 'Post not found' })
 
-  // In a real deployment, this would call the Instagram Graph API / Facebook Graph API.
-  // For now we simulate a successful sync by marking the post as posted.
-  // To enable real sync, set META_ACCESS_TOKEN and META_IG_USER_ID env vars.
   const cfg = useRuntimeConfig()
-  const metaToken = cfg.metaAccessToken
-  const igUserId = cfg.metaIgUserId
 
-  if (metaToken && igUserId && post.images.length) {
-    try {
-      // Create Instagram media container for each image, then publish as a carousel.
-      const creationIds: string[] = []
-      for (const img of post.images) {
-        const absUrl = `${event.node.req.headers.host ? 'http' : 'http'}://${event.node.req.headers.host || 'localhost:3000'}${img}`
-        const res: any = await $fetch(`https://graph.facebook.com/v21.0/${igUserId}/media`, {
-          method: 'POST',
-          body: { image_url: absUrl, caption: `${post.title}\n\n${post.tags.map((t: string) => `#${t}`).join(' ')}`, access_token: metaToken },
-        })
-        if (res?.id) creationIds.push(res.id)
-      }
-
-      if (creationIds.length) {
-        await $fetch(`https://graph.facebook.com/v21.0/${igUserId}/media_publish`, {
-          method: 'POST',
-          body: { media_type: 'CAROUSEL', children: creationIds, access_token: metaToken },
-        })
-      }
-    } catch (e) {
-      console.error('[PostAgent] Meta sync failed:', e)
-      await updatePost(id, { status: 'failed' })
-      return { success: false, error: (e as Error).message, posts: await loadPosts() }
-    }
+  // Meta's servers must fetch images over the public internet, so push the
+  // generated PNGs to GitHub first and use their raw.githubusercontent.com
+  // URLs — those are already absolute, so publishToMeta's resolveUrl leaves
+  // them untouched.
+  let githubImageUrls: string[]
+  try {
+    githubImageUrls = await publishImagesToGithub(post.images, {
+      repoOwner: GITHUB_REPO_OWNER,
+      repoName: GITHUB_REPO_NAME,
+      branch: GITHUB_BRANCH,
+    })
+  } catch (e) {
+    await updatePost(id, { status: 'failed' })
+    const msg = (e as Error).message
+    return { success: false, error: `Failed to push images to GitHub: ${msg}`, posts: await loadPosts() }
   }
 
-  await updatePost(id, { status: 'posted' })
+  const scheduledTime = scheduledAtRaw ? new Date(scheduledAtRaw) : undefined
+
+  const result = await publishToMeta({ ...post, images: githubImageUrls }, {
+    metaAccessToken: cfg.metaAccessToken,
+    metaIgUserId: cfg.metaIgUserId,
+    metaFbPageId: cfg.metaFbPageId,
+    metaThreadsUserId: cfg.metaThreadsUserId,
+  }, '', scheduledTime)
+
+  if (!result.success) {
+    await updatePost(id, { status: 'failed' })
+    return { success: false, error: result.error, posts: await loadPosts() }
+  }
+
+  const patch: Partial<typeof post> = { status: scheduledTime ? 'scheduled' : 'posted' }
+  if (scheduledTime) patch.scheduledAt = scheduledTime.toISOString()
+  await updatePost(id, patch)
+
   return { success: true, posts: await loadPosts() }
 })

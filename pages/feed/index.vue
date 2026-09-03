@@ -1,7 +1,9 @@
 <script setup lang="ts">
 const { posts, loading, refresh, generate, generating } = usePostsStore()
 
-await useAsyncData('feed-posts', async () => { await refresh(); return true })
+const { data } = await useAsyncData('feed-posts', () => refresh())
+
+watch(data, (val) => { if (val) posts.value = val }, { immediate: true })
 
 const formatTime = (iso: string) => new Date(iso).toLocaleString(undefined, {
   month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -40,7 +42,7 @@ const formatTime = (iso: string) => new Date(iso).toLocaleString(undefined, {
           <h3>{{ post.title }}</h3>
           <p class="problem">{{ post.problem }}</p>
           <div class="card-foot">
-            <span>{{ formatTime(post.scheduledAt) }}</span>
+            <span>{{ formatTime(post.createdAt) }}</span>
           </div>
         </div>
       </NuxtLink>

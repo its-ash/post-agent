@@ -17,16 +17,17 @@ export interface PostCard {
 }
 
 const posts = ref<PostCard[]>([])
-const nextSlot = ref<string>('')
 const loading = ref(false)
 const generating = ref(false)
+const publishing = ref(false)
+const scheduling = ref(false)
 
-async function refresh() {
+async function refresh(): Promise<PostCard[]> {
   loading.value = true
   try {
-    const data = await $fetch<{ posts: PostCard[]; nextSlot: string }>('/api/posts')
+    const data = await $fetch<{ posts: PostCard[] }>('/api/posts')
     posts.value = data.posts
-    nextSlot.value = data.nextSlot
+    return data.posts
   } finally {
     loading.value = false
   }
@@ -35,11 +36,35 @@ async function refresh() {
 async function generate() {
   generating.value = true
   try {
-    const res = await $fetch<{ post: PostCard; nextSlot: string }>('/api/posts/generate', { method: 'POST' })
+    const res = await $fetch<{ post: PostCard }>('/api/posts/generate', { method: 'POST' })
     posts.value = [res.post, ...posts.value]
-    nextSlot.value = res.nextSlot.toISOString ? res.nextSlot.toISOString() : String(res.nextSlot)
   } finally {
     generating.value = false
+  }
+}
+
+async function generateAndPublish() {
+  publishing.value = true
+  try {
+    const res = await $fetch<{ post: PostCard; success: boolean; error?: string }>('/api/posts/generate-publish', { method: 'POST' })
+    posts.value = [res.post, ...posts.value]
+    return res
+  } finally {
+    publishing.value = false
+  }
+}
+
+async function generateAndSchedule(scheduledAt: string) {
+  scheduling.value = true
+  try {
+    const res = await $fetch<{ post: PostCard; success: boolean; error?: string }>('/api/posts/generate-schedule', {
+      method: 'POST',
+      body: { scheduledAt },
+    })
+    posts.value = [res.post, ...posts.value]
+    return res
+  } finally {
+    scheduling.value = false
   }
 }
 
@@ -49,5 +74,5 @@ async function patchPost(id: string, body: Partial<PostCard>) {
 }
 
 export function usePostsStore() {
-  return { posts, nextSlot, loading, generating, refresh, generate, patchPost }
+  return { posts, loading, generating, refresh, generate, patchPost }
 }

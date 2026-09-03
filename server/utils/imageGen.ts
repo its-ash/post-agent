@@ -57,6 +57,40 @@ function wrapText(text: string, maxChars: number): string[] {
   return lines.slice(0, 6)
 }
 
+/**
+ * Wrap code lines to a max character width.
+ * Preserves leading indentation. Breaks at word boundaries first,
+ * falls back to hard-breaking long tokens. Continuation lines get an
+ * indent marker so they're visually distinct.
+ */
+function wrapCode(code: string, maxChars: number): string {
+  const indentUnit = '  '
+  return code
+    .split('\n')
+    .flatMap((raw) => {
+      const indentMatch = raw.match(/^(\s*)/)
+      const indent = indentMatch ? indentMatch[1] : ''
+      const content = raw.trim()
+      if (content.length <= maxChars) return [raw]
+
+      // Tokenise on word/symbol boundaries so we can break at sensible points
+      const tokens = content.match(/(\s+|[A-Za-z_]\w*|"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|\d+\.?\d*|[^\sA-Za-z0-9_"']|[^\sA-Za-z0-9_"']+)/g) || [content]
+      const result: string[] = []
+      let cur = indent
+      for (const tok of tokens) {
+        if (cur.length + tok.length > maxChars && cur.trim().length > 0) {
+          result.push(cur)
+          cur = indent + indentUnit + tok
+        } else {
+          cur += tok
+        }
+      }
+      if (cur.trim().length > 0) result.push(cur)
+      return result
+    })
+    .join('\n')
+}
+
 function highlightCode(code: string, language: string, fgColor: string): { text: string; color: string }[][] {
   const keywords: Record<string, string[]> = {
     JavaScript: ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'includes', 'find', 'filter', 'indexOf', 'new', 'class', 'import', 'export', 'from', 'async', 'await'],
@@ -150,13 +184,11 @@ function geometricSlide1(content: StructuredContent, t: Theme): string {
   <rect x="195" y="220" width="90" height="44" fill="${c.text}"/>
   <text x="240" y="252" font-family="${t.fonts.heading}" font-size="22" font-weight="900" fill="${dark?c.primary:c.bg}" text-anchor="middle">/ 04</text>
   <text x="330" y="252" font-family="${t.fonts.heading}" font-size="22" font-weight="900" fill="${c.text}" letter-spacing="2">THE PROBLEM</text>
-  <rect x="70" y="${titleY-40}" width="300" height="6" fill="${c.primary}"/>
-  <rect x="380" y="${titleY-40}" width="${W-380-70}" height="6" fill="${dark?c.primary:c.border}"/>
   ${titleLines.map((l,i)=>`<text x="70" y="${titleY+i*titleLH}" font-family="${t.fonts.heading}" font-size="${titleSize}" font-weight="900" fill="${c.text}">${escapeXml(l)}</text>`).join('\n  ')}
   ${bodyLines.map((l,i)=>`<text x="70" y="${bodyY+i*bodyLH}" font-family="${t.fonts.body}" font-size="${bodySize}" font-weight="600" fill="${c.text}" opacity="0.85">${escapeXml(l)}</text>`).join('\n  ')}
   <rect x="24" y="${H-110}" width="${W-48}" height="86" fill="${c.text}"/>
   <rect x="24" y="${H-110}" width="${W-48}" height="8" fill="${c.primary}"/>
-  <text x="70" y="${H-50}" font-family="${t.fonts.heading}" font-size="28" font-weight="900" fill="${dark?c.primary:c.bg}">POSTAGENT</text>
+  <text x="70" y="${H-50}" font-family="${t.fonts.heading}" font-size="28" font-weight="900" fill="${dark?c.primary:c.bg}">ASH BY ASH</text>
   <text x="${W-220}" y="${H-50}" font-family="${t.fonts.heading}" font-size="26" font-weight="900" fill="${c.accent}">SWIPE →</text>
 </svg>`
 }
@@ -188,7 +220,7 @@ function roundedSlide1(content: StructuredContent, t: Theme): string {
   ${bodyLines.map((l,i)=>`<text x="120" y="${bodyY+i*bodyLH}" font-family="${t.fonts.body}" font-size="${bodySize}" font-weight="600" fill="${c.text}" opacity="0.7">${escapeXml(l)}</text>`).join('\n  ')}
   <!-- Bottom bar inside card -->
   <rect x="120" y="${H-210}" width="${W-240}" height="2" fill="${c.border}" opacity="0.2"/>
-  <text x="120" y="${H-170}" font-family="${t.fonts.heading}" font-size="24" font-weight="800" fill="${c.text}">POSTAGENT</text>
+  <text x="120" y="${H-170}" font-family="${t.fonts.heading}" font-size="24" font-weight="800" fill="${c.text}">ASH BY ASH</text>
   <text x="${W-280}" y="${H-170}" font-family="${t.fonts.heading}" font-size="22" font-weight="700" fill="${c.primary}">SWIPE →</text>
   <!-- Decorative dots -->
   <circle cx="${W-140}" cy="140" r="20" fill="${c.secondary}" opacity="0.8"/>
@@ -218,7 +250,7 @@ function minimalDarkSlide1(content: StructuredContent, t: Theme): string {
   ${bodyLines.map((l,i)=>`<text x="60" y="${bodyY+i*bodyLH}" font-family="${t.fonts.body}" font-size="${bodySize}" font-weight="400" fill="${c.text}" opacity="0.5">${escapeXml(l)}</text>`).join('\n  ')}
   <!-- Minimal bottom -->
   <rect x="60" y="${H-80}" width="${W-120}" height="1" fill="${c.border}"/>
-  <text x="60" y="${H-40}" font-family="${t.fonts.heading}" font-size="20" font-weight="500" fill="${c.primary}">POSTAGENT</text>
+  <text x="60" y="${H-40}" font-family="${t.fonts.heading}" font-size="20" font-weight="500" fill="${c.primary}">ASH BY ASH</text>
   <text x="${W-200}" y="${H-40}" font-family="${t.fonts.heading}" font-size="20" font-weight="500" fill="${c.text}" opacity="0.3">SWIPE →</text>
 </svg>`
 }
@@ -251,7 +283,7 @@ function brutalistSlide1(content: StructuredContent, t: Theme): string {
   <!-- Bottom bar with shadow -->
   <rect x="28" y="${H-92}" width="${W-48}" height="70" fill="${c.border}"/>
   <rect x="24" y="${H-96}" width="${W-48}" height="70" fill="${c.text}" stroke="${c.border}" stroke-width="4"/>
-  <text x="60" y="${H-44}" font-family="${t.fonts.heading}" font-size="28" font-weight="900" fill="${c.secondary}">POSTAGENT</text>
+  <text x="60" y="${H-44}" font-family="${t.fonts.heading}" font-size="28" font-weight="900" fill="${c.secondary}">ASH BY ASH</text>
   <text x="${W-240}" y="${H-44}" font-family="${t.fonts.heading}" font-size="26" font-weight="900" fill="${c.primary}">SWIPE →</text>
 </svg>`
 }
@@ -288,7 +320,7 @@ function handdrawnSlide1(content: StructuredContent, t: Theme): string {
   ${bodyLines.map((l,i)=>`<text x="70" y="${bodyY+i*bodyLH}" font-family="${t.fonts.body}" font-size="${bodySize}" fill="${c.text}" opacity="0.8">${escapeXml(l)}</text>`).join('\n  ')}
   <!-- Wobbly bottom bar -->
   <rect x="40" y="${H-100}" width="${W-80}" height="70" fill="${c.text}" rx="15px 225px 15px 255px / 225px 15px 255px 15px"/>
-  <text x="80" y="${H-50}" font-family="${t.fonts.heading}" font-size="26" font-weight="700" fill="${c.bg}">POSTAGENT</text>
+  <text x="80" y="${H-50}" font-family="${t.fonts.heading}" font-size="26" font-weight="700" fill="${c.bg}">ASH BY ASH</text>
   <text x="${W-240}" y="${H-50}" font-family="${t.fonts.heading}" font-size="24" font-weight="700" fill="${c.primary}">SWIPE →</text>
   <!-- Doodle arrows -->
   <path d="M 950 200 Q 980 180 1000 220 Q 1020 260 990 280" fill="none" stroke="${c.accent}" stroke-width="3" stroke-dasharray="5 3"/>
@@ -324,7 +356,7 @@ function swissGridSlide1(content: StructuredContent, t: Theme): string {
   ${bodyLines.map((l,i)=>`<text x="60" y="${bodyY+i*bodyLH}" font-family="${t.fonts.body}" font-size="${bodySize}" font-weight="400" fill="${c.text}" opacity="0.6">${escapeXml(l)}</text>`).join('\n  ')}
   <!-- Bottom bar — just a line -->
   <rect x="60" y="${H-60}" width="${W-120}" height="2" fill="${c.text}"/>
-  <text x="60" y="${H-25}" font-family="${t.fonts.heading}" font-size="22" font-weight="900" fill="${c.text}">POSTAGENT</text>
+  <text x="60" y="${H-25}" font-family="${t.fonts.heading}" font-size="22" font-weight="900" fill="${c.text}">ASH BY ASH</text>
   <text x="${W-60}" y="${H-25}" font-family="${t.fonts.heading}" font-size="22" font-weight="900" fill="${c.primary}" text-anchor="end">SWIPE →</text>
 </svg>`
 }
@@ -344,7 +376,7 @@ function terminalSlide1(content: StructuredContent, t: Theme): string {
   ${Array.from({length: 40 }, (_, i) => `<rect x="0" y="${i*27}" width="${W}" height="13" fill="${c.bgAlt}" opacity="0.08"/>`).join('\n  ')}
   <!-- Top bar -->
   <rect x="0" y="0" width="${W}" height="70" fill="${c.bgAlt}" opacity="0.3"/>
-  <text x="60" y="48" font-family="${t.fonts.heading}" font-size="24" font-weight="700" fill="${c.primary}">root@postagent:~# ./show --slide 01</text>
+  <text x="60" y="48" font-family="${t.fonts.heading}" font-size="24" font-weight="700" fill="${c.primary}">root@ashbyash:~# ./show --slide 01</text>
   <text x="${W-80}" y="48" font-family="${t.fonts.heading}" font-size="20" fill="${c.secondary}">[01/04]</text>
   <!-- CLI prompt -->
   <text x="60" y="160" font-family="${t.fonts.heading}" font-size="28" font-weight="700" fill="${c.secondary}">$</text>
@@ -361,7 +393,7 @@ function terminalSlide1(content: StructuredContent, t: Theme): string {
   <!-- Bottom bar -->
   <rect x="0" y="${H-80}" width="${W}" height="80" fill="${c.bgAlt}" opacity="0.3"/>
   <rect x="0" y="${H-80}" width="${W}" height="1" fill="${c.primary}" opacity="0.5"/>
-  <text x="60" y="${H-30}" font-family="${t.fonts.heading}" font-size="22" font-weight="700" fill="${c.primary}">POSTAGENT</text>
+  <text x="60" y="${H-30}" font-family="${t.fonts.heading}" font-size="22" font-weight="700" fill="${c.primary}">ASH BY ASH</text>
   <text x="${W-60}" y="${H-30}" font-family="${t.fonts.heading}" font-size="22" font-weight="700" fill="${c.secondary}" text-anchor="end">SWIPE →</text>
 </svg>`
 }
@@ -371,19 +403,33 @@ function terminalSlide1(content: StructuredContent, t: Theme): string {
 // ═══════════════════════════════════════════════════════
 function slide2Code(content: StructuredContent, t: Theme): string {
   const c = t.colors
-  const codeLines = content.codeSnippet.split('\n').slice(0, 16)
-  const highlighted = highlightCode(content.codeSnippet, content.language, '#E6EDF3').slice(0, 16)
-  const fontSize = codeLines.length <= 8 ? 36 : codeLines.length <= 11 ? 32 : codeLines.length <= 14 ? 28 : 24
+  // Available code width: codeX=100 → right edge ~W-40=1040 → 940px
+  // Char width ≈ fontSize * 0.62, so maxChars = 940 / (fontSize * 0.62)
+  // For fontSize=36 → 42 chars, 32 → 47, 28 → 54, 24 → 63
+  // Wrap at the tightest limit first, then re-wrap if font shrinks
+  const CODE_X = 100
+  const CODE_RIGHT = W - 40
+  const CODE_PX = CODE_RIGHT - CODE_X
+
+  // Pass 1: wrap at 42 (safe for largest font) to estimate line count
+  const wrapped1 = wrapCode(content.codeSnippet, 42)
+  const lineCount1 = wrapped1.split('\n').length
+  const fontSize = lineCount1 <= 8 ? 36 : lineCount1 <= 12 ? 32 : lineCount1 <= 16 ? 28 : 24
+
+  // Pass 2: compute actual maxChars for this fontSize and re-wrap from original
+  const maxChars = Math.floor(CODE_PX / (fontSize * 0.62))
+  const wrappedCode = wrapCode(content.codeSnippet, maxChars)
+  const codeLines = wrappedCode.split('\n').slice(0, 20)
+  const highlighted = highlightCode(wrappedCode, content.language, '#E6EDF3').slice(0, 20)
   const lineHeight = Math.round(fontSize * 1.5)
   const codeYStart = 140
-  const codeX = 100
   const editorBg = isDarkBg(c.codeBg) ? c.codeBg : '#0D1117'
   const topBarBg = shade(editorBg, 10)
   const gutterBg = shade(editorBg, -5)
   const dividerColor = shade(editorBg, 20)
   const codeFg = '#E6EDF3'
   const codeSpans = highlighted.map((tokens, lineIdx) => {
-    let xPos = codeX
+    let xPos = CODE_X
     return tokens.map(tok => {
       const escaped = escapeXml(tok.text)
       const span = `<text x="${xPos}" y="${codeYStart + lineIdx * lineHeight}" font-family="${t.fonts.code}" font-size="${fontSize}" font-weight="700" fill="${tok.color}">${escaped}</text>`
@@ -398,7 +444,7 @@ function slide2Code(content: StructuredContent, t: Theme): string {
   if (headerStyle === 'terminal') {
     topBar = `
   <rect x="0" y="0" width="${W}" height="100" fill="${topBarBg}"/>
-  <text x="40" y="60" font-family="${t.fonts.heading}" font-size="22" font-weight="700" fill="${c.primary}">root@postagent:~# vim ${escapeXml(content.language.toLowerCase())}.find</text>
+  <text x="40" y="60" font-family="${t.fonts.heading}" font-size="22" font-weight="700" fill="${c.primary}">root@ashbyash:~# vim ${escapeXml(content.language.toLowerCase())}.find</text>
   <text x="${W-40}" y="60" font-family="${t.fonts.heading}" font-size="18" fill="${c.secondary}" text-anchor="end">[02/04]</text>`
   } else if (headerStyle === 'brutalist') {
     topBar = `
@@ -461,7 +507,7 @@ function slide2Code(content: StructuredContent, t: Theme): string {
   <!-- Bottom (compact) -->
   <rect x="0" y="${H-50}" width="${W}" height="50" fill="${topBarBg}"/>
   <rect x="0" y="${H-50}" width="${W}" height="3" fill="${c.primary}"/>
-  <text x="40" y="${H-18}" font-family="${t.fonts.heading}" font-size="20" font-weight="900" fill="${codeFg}">POSTAGENT</text>
+  <text x="40" y="${H-18}" font-family="${t.fonts.heading}" font-size="20" font-weight="900" fill="${codeFg}">ASH BY ASH</text>
   <text x="${W-180}" y="${H-18}" font-family="${t.fonts.heading}" font-size="18" font-weight="900" fill="${c.accent}">SWIPE →</text>
 </svg>`
 }
@@ -491,7 +537,7 @@ function generateSlide3(content: StructuredContent, t: Theme): string {
   const raw = fn(modified, t)
   // Patch: change 01→03, THE PROBLEM→WHY IT WORKS, / 04 stays
   return raw
-    .replace('>01<', '>03<')
+    .replaceAll('>01<', '>03<')
     .replace('THE PROBLEM', 'WHY IT WORKS')
     .replace('the problem', 'why it works')
     .replace('--slide 01', '--slide 03')
@@ -512,7 +558,7 @@ function generateSlide4(t: Theme): string {
   <text x="${W/2}" y="400" font-family="${t.fonts.heading}" font-size="28" fill="${c.secondary}" text-anchor="middle" opacity="0.5">$ echo "Follow us for more"</text>
   <text x="${W/2}" y="520" font-family="${t.fonts.heading}" font-size="100" font-weight="700" fill="${c.primary}" text-anchor="middle" letter-spacing="2" style="filter:drop-shadow(0 0 12px ${c.primary})">FOLLOW US</text>
   <rect x="${W/2-250}" y="560" width="500" height="3" fill="${c.primary}" opacity="0.4"/>
-  <text x="${W/2}" y="640" font-family="${t.fonts.heading}" font-size="40" font-weight="700" fill="${c.secondary}" text-anchor="middle">@POSTAGENT</text>
+  <text x="${W/2}" y="640" font-family="${t.fonts.heading}" font-size="40" font-weight="700" fill="${c.secondary}" text-anchor="middle">@ASHBYASH</text>
   <text x="${W/2}" y="760" font-family="${t.fonts.heading}" font-size="28" fill="${c.text}" text-anchor="middle" opacity="0.6">[ INSTAGRAM ]  [ FACEBOOK ]</text>
   <circle cx="100" cy="100" r="4" fill="${c.primary}" style="filter:drop-shadow(0 0 8px ${c.primary})"/>
   <circle cx="${W-100}" cy="${H-100}" r="4" fill="${c.primary}" style="filter:drop-shadow(0 0 8px ${c.primary})"/>
@@ -527,7 +573,7 @@ function generateSlide4(t: Theme): string {
   <rect x="60" y="200" width="120" height="8" fill="${c.primary}"/>
   <text x="60" y="500" font-family="${t.fonts.heading}" font-size="120" font-weight="900" fill="${c.text}" letter-spacing="-6">FOLLOW</text>
   <text x="60" y="620" font-family="${t.fonts.heading}" font-size="120" font-weight="900" fill="${c.primary}" letter-spacing="-6">US.</text>
-  <text x="60" y="720" font-family="${t.fonts.body}" font-size="32" font-weight="400" fill="${c.text}" opacity="0.5">@POSTAGENT</text>
+  <text x="60" y="720" font-family="${t.fonts.body}" font-size="32" font-weight="400" fill="${c.text}" opacity="0.5">@ASHBYASH</text>
   <rect x="60" y="800" width="300" height="60" fill="${c.primary}"/>
   <text x="210" y="842" font-family="${t.fonts.heading}" font-size="28" font-weight="900" fill="#fff" text-anchor="middle">INSTAGRAM</text>
   <rect x="400" y="800" width="300" height="60" fill="${c.text}"/>
@@ -543,7 +589,7 @@ function generateSlide4(t: Theme): string {
   <text x="60" y="560" font-family="${t.fonts.heading}" font-size="110" font-weight="700" fill="${c.primary}" letter-spacing="-5">FOLLOW</text>
   <text x="60" y="680" font-family="${t.fonts.heading}" font-size="110" font-weight="700" fill="${c.text}" opacity="0.3" letter-spacing="-5">US.</text>
   <rect x="60" y="750" width="${W-120}" height="1" fill="${c.border}"/>
-  <text x="60" y="800" font-family="${t.fonts.heading}" font-size="24" font-weight="500" fill="${c.text}" opacity="0.5">@POSTAGENT</text>
+  <text x="60" y="800" font-family="${t.fonts.heading}" font-size="24" font-weight="500" fill="${c.text}" opacity="0.5">@ASHBYASH</text>
   <text x="60" y="870" font-family="${t.fonts.heading}" font-size="20" fill="${c.primary}" opacity="0.6">→ INSTAGRAM</text>
   <text x="300" y="870" font-family="${t.fonts.heading}" font-size="20" fill="${c.primary}" opacity="0.6">→ FACEBOOK</text>
 </svg>`
@@ -555,7 +601,7 @@ function generateSlide4(t: Theme): string {
   <rect x="64" y="384" width="${W-128}" height="300" fill="${c.border}"/>
   <rect x="60" y="380" width="${W-128}" height="300" fill="${c.text}" stroke="${c.border}" stroke-width="4"/>
   <text x="${W/2}" y="520" font-family="${t.fonts.heading}" font-size="100" font-weight="900" fill="${c.secondary}" text-anchor="middle">FOLLOW US</text>
-  <text x="${W/2}" y="630" font-family="${t.fonts.heading}" font-size="40" font-weight="900" fill="${c.bg}" text-anchor="middle">@POSTAGENT</text>
+  <text x="${W/2}" y="630" font-family="${t.fonts.heading}" font-size="40" font-weight="900" fill="${c.bg}" text-anchor="middle">@ASHBYASH</text>
   <rect x="68" y="734" width="220" height="64" fill="${c.border}"/>
   <rect x="60" y="730" width="220" height="64" fill="${c.primary}" stroke="${c.border}" stroke-width="4"/>
   <text x="170" y="774" font-family="${t.fonts.heading}" font-size="28" font-weight="900" fill="${c.bg}" text-anchor="middle">INSTAGRAM</text>
@@ -571,7 +617,7 @@ function generateSlide4(t: Theme): string {
   ${Array.from({length:20},(_,i)=>{const x=50+(i%5)*200,y=50+Math.floor(i/5)*200;return `<circle cx="${x}" cy="${y}" r="1.5" fill="${c.border}" opacity="0.08"/>`}).join('\n  ')}
   <text x="${W/2}" y="450" font-family="${t.fonts.heading}" font-size="90" font-weight="700" fill="${c.primary}" text-anchor="middle">Follow Us!</text>
   <path d="M ${W/2-260} 490 Q ${W/2} 510 ${W/2+260} 490" fill="none" stroke="${c.primary}" stroke-width="4"/>
-  <text x="${W/2}" y="580" font-family="${t.fonts.heading}" font-size="40" font-weight="700" fill="${c.text}" text-anchor="middle">@POSTAGENT</text>
+  <text x="${W/2}" y="580" font-family="${t.fonts.heading}" font-size="40" font-weight="700" fill="${c.text}" text-anchor="middle">@ASHBYASH</text>
   <rect x="${W/2-220}" y="640" width="200" height="56" fill="${c.primary}" stroke="${c.border}" stroke-width="3" rx="255px 15px 225px 15px / 15px 225px 15px 255px"/>
   <text x="${W/2-120}" y="678" font-family="${t.fonts.body}" font-size="26" font-weight="700" fill="${c.bg}" text-anchor="middle">Instagram</text>
   <rect x="${W/2+20}" y="640" width="200" height="56" fill="${c.secondary}" stroke="${c.border}" stroke-width="3" rx="15px 225px 15px 255px / 225px 15px 255px 15px"/>
@@ -589,7 +635,7 @@ function generateSlide4(t: Theme): string {
   <circle cx="${W/2}" cy="380" r="100" fill="${c.accent}" stroke="${c.border}" stroke-width="3"/>
   <circle cx="${W/2}" cy="380" r="50" fill="${c.primary}"/>
   <text x="${W/2}" y="580" font-family="${t.fonts.heading}" font-size="80" font-weight="800" fill="${c.text}" text-anchor="middle">Follow Us</text>
-  <text x="${W/2}" y="660" font-family="${t.fonts.body}" font-size="36" font-weight="700" fill="${c.primary}" text-anchor="middle">@POSTAGENT</text>
+  <text x="${W/2}" y="660" font-family="${t.fonts.body}" font-size="36" font-weight="700" fill="${c.primary}" text-anchor="middle">@ASHBYASH</text>
   <rect x="${W/2-220}" y="720" width="200" height="56" fill="${c.primary}" rx="9999"/>
   <text x="${W/2-120}" y="758" font-family="${t.fonts.heading}" font-size="26" font-weight="800" fill="#fff" text-anchor="middle">Instagram</text>
   <rect x="${W/2+20}" y="720" width="200" height="56" fill="${c.secondary}" rx="9999"/>
@@ -605,7 +651,7 @@ function generateSlide4(t: Theme): string {
   <polygon points="${W/2},260 ${W/2-140},520 ${W/2+140},520" fill="${c.secondary}" stroke="${c.border}" stroke-width="8"/>
   <text x="${W/2}" y="720" font-family="${t.fonts.heading}" font-size="100" font-weight="900" fill="${accentOnBg}" text-anchor="middle">FOLLOW US</text>
   <rect x="${W/2-250}" y="750" width="500" height="6" fill="${c.primary}"/>
-  <text x="${W/2}" y="840" font-family="${t.fonts.heading}" font-size="48" font-weight="900" fill="${textOnBg}" text-anchor="middle">@POSTAGENT</text>
+  <text x="${W/2}" y="840" font-family="${t.fonts.heading}" font-size="48" font-weight="900" fill="${textOnBg}" text-anchor="middle">@ASHBYASH</text>
   <rect x="${W/2-220}" y="890" width="200" height="56" fill="${c.accent}" stroke="${c.accent}" stroke-width="4" rx="${t.radius}"/>
   <text x="${W/2-120}" y="930" font-family="${t.fonts.heading}" font-size="30" font-weight="900" fill="${c.text}" text-anchor="middle">INSTAGRAM</text>
   <rect x="${W/2+20}" y="890" width="200" height="56" fill="${c.secondary}" stroke="${c.secondary}" stroke-width="4" rx="${t.radius}"/>

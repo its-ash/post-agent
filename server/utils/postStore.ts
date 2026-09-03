@@ -62,20 +62,6 @@ export async function getPost(id: string): Promise<PostCard | undefined> {
   return posts.find(p => p.id === id)
 }
 
-export function buildNextSlot(posts: PostCard[], intervalMin: number): Date {
-  const now = new Date()
-  const base = new Date(now)
-  const lastScheduled = posts
-    .filter(p => p.status === 'scheduled' || p.status === 'posted')
-    .map(p => new Date(p.scheduledAt))
-    .sort((a, b) => b.getTime() - a.getTime())[0]
-  if (lastScheduled && lastScheduled.getTime() > now.getTime()) {
-    return new Date(lastScheduled.getTime() + intervalMin * 60_000)
-  }
-  base.setMinutes(base.getMinutes() + intervalMin, 0, 0)
-  return base
-}
-
 export function makeId(): string {
   return `post_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
